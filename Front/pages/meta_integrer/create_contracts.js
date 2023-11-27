@@ -57,13 +57,9 @@ class CreateLeszy extends React.Component {
             <ClimbingBoxLoader color={'#000000'} loading={isLoading} size={100} />
           </div>
         )}
-          <button class="styled-button"  onClick={this.TwoFirstCall.bind(this, App)}>
-          DODAJ 2 PIERWSZYCH LESZY <br></br><br></br><img src="https://previews.123rf.com/images/ngupakarti/ngupakarti1908/ngupakarti190800680/128952842-one-line-drawing-of-a-man-invite-to-shake-hand-vector-illustration-minimal-design.jpg" alt="Tu podaj tekst alternatywny" className="obraz"/>
-        </button>
+          
         
-          <button class="styled-button"  onClick={this.AddLeszy.bind(this, App)}>
-            DODAJ NASTEPNYCH LESZY   <br></br><br></br><img src="https://c7.alamy.com/comp/2GPMK6X/continuous-one-line-of-businesswoman-and-businessman-in-silhouette-minimal-style-perfect-for-cards-party-invitations-posters-stickers-clothing-black-abstract-icon-business-concept-2GPMK6X.jpg" alt="Tu podaj tekst alternatywny" className="obraz"/>
-          </button>
+          
        
     
         <h1>{this.state.accept}</h1>

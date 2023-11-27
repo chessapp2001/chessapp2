@@ -3,7 +3,8 @@ import { Segment } from "semantic-ui-react";
 import React, { Component, useState } from "react";
 import { Button, Progress } from "semantic-ui-react";
 
-import Mainsite from './meta_integrer/mainsite'
+import Mainsite from "./meta_integrer/mainsite";
+
 /* export const getServerSideProps = async () =>{
     const response = await fetch('https://');
     const {data, success} = await resposne.json();
@@ -26,19 +27,22 @@ function Sell() {
 				<LayoutL>
 					<div class="ui horizontal segments">
 						<div class="ui   segment">
-							<a class="item " id="L" href="http://localhost:3000/Create_L">
+							<a class="item " id="L" href="http://localhost:3000/nr1">
 								{" "}
-								Dodanie leszego
+								Table nr1
 							</a>
 						</div>
 						<div class="ui  segment">
-							<a class="item " id="L" href="http://localhost:3000/View_L">
+							<a class="item " id="L" href="http://localhost:3000/nr2">
 								{" "}
-								Twoje obligacje
+								Table nr2
 							</a>
 						</div>
 					</div>
-          <Mainsite/>
+					<div className="mainsite-container">
+						<Mainsite />
+						
+					</div>
 				</LayoutL>
 			</div>
 			<link
@@ -46,6 +50,13 @@ function Sell() {
 				rel="stylesheet"
 				href="https://cdn.jsdelivr.net/npm/semantic-ui@2/dist/semantic.min.css"
 			/>
+			<style jsx>{`
+       
+        .mainsite-container {
+          display: flex; // Use flexbox
+          justify-content: space-between; // Align items with space between
+        }
+      `}</style>
 		</>
 	);
 }
