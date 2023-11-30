@@ -2,23 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { useCallback } from 'react';
 
 import { Chess } from 'chess.js';
-import { useRouter } from 'next/router';
 import { Chessboard } from 'react-chessboard';
-import { Socket } from 'socket.io-client';
+import io from 'socket.io-client';
 
 const game = new Chess();
 
-export const ChessGame = ({
-  playerColor,
-  socket,
-}: {
+const socket = io('http://localhost:3037', {
+  transports: ['websocket'],
+});
+
+export type ChessGameProps = {
   playerColor: 'white' | 'black';
-  socket: Socket;
-}) => {
+  code: string;
+};
+
+export const ChessGame = ({ playerColor, code }: ChessGameProps) => {
   const [status, setStatus] = useState('');
-  const [pgn, setPgn] = useState('');
   const [gameHasStarted, setGameHasStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [time, setTime] = useState(600);
 
   const updateStatus = useCallback(() => {
     let status = '';
@@ -39,7 +42,9 @@ export const ChessGame = ({
     } else if (gameOver) {
       status = 'Opponent disconnected, you win!';
     } else if (!gameHasStarted) {
-      status = 'Waiting for black to join';
+      status = `Waiting for ${
+        playerColor === 'white' ? 'black' : 'white'
+      } to join`;
     }
 
     // game still on
@@ -53,8 +58,7 @@ export const ChessGame = ({
     }
 
     setStatus(status);
-    setPgn(game.pgn());
-  }, [gameHasStarted, gameOver]);
+  }, [gameHasStarted, gameOver, playerColor]);
 
   useEffect(() => {
     updateStatus();
@@ -62,29 +66,31 @@ export const ChessGame = ({
     // Socket event listeners
     socket.on('newMove', (move) => {
       game.move(move);
+      console.log('newMove', move);
       updateStatus();
     });
 
     socket.on('startGame', () => {
       setGameHasStarted(true);
+      console.log('startGame');
       updateStatus();
     });
 
     socket.on('gameOverDisconnect', () => {
       setGameOver(true);
+      console.log('gameOverDisconnect');
       updateStatus();
     });
+  }, [updateStatus]);
 
-    // Cleanup
+  useEffect(() => {
     return () => {
+      console.log('socket.off');
       socket.off('newMove');
       socket.off('startGame');
       socket.off('gameOverDisconnect');
     };
-  }, [socket, updateStatus]);
-
-  const router = useRouter();
-  const code = router.query.code;
+  }, []);
 
   useEffect(() => {
     if (code) {
@@ -92,57 +98,108 @@ export const ChessGame = ({
         code: code,
       });
     }
-  }, [code, socket]);
+  }, [code]);
+
+  const canDrag = gameHasStarted && !gameOver;
+
+  // turn on timer for 10min when gameStart==true
+
+  useEffect(() => {
+    if (canDrag) {
+      timerRef.current = setInterval(() => {
+        setTime((prev) => prev - 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [canDrag]);
 
   return (
     <div>
-      <Chessboard
-        id={234}
-        arePiecesDraggable
-        position={game.fen()}
-        onPieceDrop={(source, target) => {
-          const theMove = {
-            from: source,
-            to: target,
-            promotion: 'q', // NOTE: always promote to a queen for simplicity
-          } as const;
-          // see if the move is legal
-          const move = game.move(theMove);
+      <div style={{ position: 'relative' }}>
+        {!canDrag && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'rgba(255,255,255,0.5)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1000,
+            }}
+          >
+            {status}
+          </div>
+        )}
+        <Chessboard
+          id={234}
+          position={game.fen()}
+          onPieceDrop={(source, target, piece) => {
+            if (playerColor === 'white' && !piece.includes('w')) {
+              return false;
+            }
 
-          // illegal move
-          if (move === null) return false;
+            if (playerColor === 'black' && !piece.includes('b')) {
+              return false;
+            }
 
-          socket.emit('move', theMove);
+            const theMove = {
+              from: source,
+              to: target,
+              promotion: 'q', // NOTE: always promote to a queen for simplicity
+            } as const;
+            // see if the move is legal
 
-          updateStatus();
+            const move = game.move(theMove);
 
-          return true;
-        }}
-        boardOrientation={playerColor}
-        onPieceDragBegin={(piece) => {
-          // do not pick up pieces if the game is over
-          if (game.game_over()) return false;
-          if (!gameHasStarted) return false;
-          if (gameOver) return false;
+            // illegal move
+            if (move === null) return false;
 
-          if (
-            (playerColor === 'black' && piece.search(/^w/) !== -1) ||
-            (playerColor === 'white' && piece.search(/^b/) !== -1)
-          ) {
-            return false;
-          }
+            socket.emit('move', theMove);
 
-          // only pick up pieces for the side to move
-          if (
-            (game.turn() === 'w' && piece.search(/^b/) !== -1) ||
-            (game.turn() === 'b' && piece.search(/^w/) !== -1)
-          ) {
-            return false;
-          }
-        }}
-      />
-      <div>{status}</div>
-      <div>{pgn}</div>
+            updateStatus();
+
+            return true;
+          }}
+          boardOrientation={playerColor}
+          onPieceDragBegin={(piece) => {
+            // do not pick up pieces if the game is over
+            if (game.game_over()) return false;
+            if (!gameHasStarted) return false;
+            if (gameOver) return false;
+
+            if (
+              (playerColor === 'black' && piece.search(/^w/) !== -1) ||
+              (playerColor === 'white' && piece.search(/^b/) !== -1)
+            ) {
+              return false;
+            }
+
+            // only pick up pieces for the side to move
+            if (
+              (game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+              (game.turn() === 'b' && piece.search(/^w/) !== -1)
+            ) {
+              return false;
+            }
+          }}
+        />
+      </div>
+      <div>Status:{status}</div>
+      <div>{game.pgn()}</div>
+      {/* convert to min:sec */}
+      <div>
+        Time: {Math.floor(time / 60)}:{(time % 60).toString().padStart(2, '0')}
+      </div>
     </div>
   );
 };
