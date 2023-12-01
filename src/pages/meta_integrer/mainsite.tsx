@@ -20,7 +20,9 @@ export const ChessGame = ({ playerColor, code }: ChessGameProps) => {
   const [status, setStatus] = useState('');
   const [gameHasStarted, setGameHasStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [gameCurrentColor, setGameCurrentColor] = useState<'white' | 'black'>(
+    'white',
+  );
   const [time, setTime] = useState(600);
 
   const updateStatus = useCallback(() => {
@@ -30,6 +32,7 @@ export const ChessGame = ({ playerColor, code }: ChessGameProps) => {
     if (game.turn() === 'b') {
       moveColor = 'Black';
     }
+    setGameCurrentColor(game.turn() === 'b' ? 'black' : 'white');
 
     // checkmate?
     if (game.in_checkmate()) {
@@ -102,25 +105,25 @@ export const ChessGame = ({ playerColor, code }: ChessGameProps) => {
 
   const canDrag = gameHasStarted && !gameOver;
 
-  // turn on timer for 10min when gameStart==true
-
   useEffect(() => {
-    if (canDrag) {
-      timerRef.current = setInterval(() => {
+    let timer: NodeJS.Timeout | null = null;
+
+    if (canDrag && gameCurrentColor === playerColor) {
+      timer = setTimeout(() => {
         setTime((prev) => prev - 1);
       }, 1000);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
     }
 
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+      if (timer) {
+        clearTimeout(timer);
       }
     };
-  }, [canDrag]);
+  }, [canDrag, time, gameCurrentColor, playerColor]);
+
+  const minutes = Math.floor(time / 60);
+  // 00 to 60
+  const seconds = (time % 60).toString().padStart(2, '0');
 
   return (
     <div>
@@ -196,9 +199,8 @@ export const ChessGame = ({ playerColor, code }: ChessGameProps) => {
       </div>
       <div>Status:{status}</div>
       <div>{game.pgn()}</div>
-      {/* convert to min:sec */}
       <div>
-        Time: {Math.floor(time / 60)}:{(time % 60).toString().padStart(2, '0')}
+        Time: {minutes}:{seconds}
       </div>
     </div>
   );
